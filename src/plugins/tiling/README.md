@@ -59,6 +59,7 @@
       * [query list of windows on focused desktop](#query-list-of-windows-on-focused-desktop)
   * [query monitor related](#query-monitor-related)
       * [query focused monitor](#query-focused-monitor-id)
+	  * [query focused monitor desktops](#query-focused-monitor-desktops)
 
 ---
 
@@ -398,4 +399,10 @@
 ##### query focused monitor id
 
     chunkc tiling::query --monitor id
-    short flag: d
+    short flag: m
+
+##### query-focused-monitor-desktops
+
+	chunkc tiling::query --monitor desktops
+	short flag: m
+	desc: outputs the list of desktops for the focused monitor

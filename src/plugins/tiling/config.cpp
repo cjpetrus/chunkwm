@@ -599,7 +599,8 @@ ParseQueryCommand(const char *Message, command *Chain)
             } break;
             case 'm':
             {
-                if(StringEquals(optarg, "id"))
+                if((StringEquals(optarg, "id")) ||
+                   (StringEquals(optarg, "desktops")))
                 {
                     command *Entry = ConstructCommand(Option, optarg);
                     Command->Next = Entry;
