@@ -2454,10 +2454,84 @@ out:
     WriteToSocket(Message, SockFD);
 }
 
+internal inline void
+QueryFocusedMonitorSpaces(int SockFD)
+{
+    char Message[512], SpaceId[512];
+    CFStringRef DisplayRef;
+	unsigned ThisMonitor, MonitorId, DesktopId;
+    bool Success, Room;
+	macos_space *Space, **SpacesForWindow, **List;
+	size_t size;
+
+	Success = AXLibActiveSpace(&Space);
+    if(!Success)
+    {
+        snprintf(Message, sizeof(Message), "?");
+		DisplayRef = NULL;
+        goto out;
+    }
+
+	Success = AXLibCGSSpaceIDToDesktopID(Space->Id, &ThisMonitor, NULL);
+    ASSERT(Success);
+
+	DisplayRef = AXLibGetDisplayIdentifierFromArrangement(ThisMonitor);
+
+	SpacesForWindow = List = AXLibGetSpacesForDisplay(DisplayRef);
+	if (SpacesForWindow != NULL)
+	{
+		Room = true;
+		while((Space = *List++))
+		{
+			if(Space->Type == kCGSSpaceUser && Room)
+		    {
+				Success = AXLibCGSSpaceIDToDesktopID(Space->Id, &MonitorId, &DesktopId);
+			    ASSERT(Success);
+				if (MonitorId == ThisMonitor)
+				{
+					snprintf(SpaceId, sizeof(SpaceId),
+						"%d:%d ",
+						(ThisMonitor + 1),
+						DesktopId
+					);
+					size = strlcat(Message, SpaceId, sizeof (Message));
+					if (size == 512)
+					{
+						/*
+						 * We have reached the limit of the message buffer,
+						 * signal that there is no more room in the buffer, but
+						 * continue the while loop to free the contents of the
+						 * Space array and then end gracefully
+						 */
+						Message[size] = '\x0';
+						Room = false;
+					}
+				}
+			}
+			AXLibDestroySpace(Space);
+		}
+	    free(SpacesForWindow);
+	}
+	else
+	{
+		snprintf(Message, sizeof(Message), "?");
+	}
+out:
+	if(DisplayRef != NULL)
+	{
+		CFRelease(DisplayRef);
+	}
+    WriteToSocket(Message, SockFD);
+}
+
 void QueryMonitor(char *Op, int SockFD)
 {
     if(StringEquals(Op, "id"))
     {
         QueryFocusedMonitor(SockFD);
     }
+	else if(StringEquals(Op, "desktops"))
+	{
+		QueryFocusedMonitorSpaces(SockFD);
+	}
 }

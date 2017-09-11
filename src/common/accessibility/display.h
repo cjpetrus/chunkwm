@@ -57,6 +57,7 @@ unsigned AXLibDisplayCount();
 
 CGSSpaceID AXLibActiveCGSSpaceID(CFStringRef DisplayRef);
 macos_space *AXLibActiveSpace(CFStringRef DisplayRef);
+macos_space **AXLibGetSpacesForDisplay(CFStringRef DisplayRef);
 bool AXLibActiveSpace(macos_space **Space);
 void AXLibDestroySpace(macos_space *Space);
 

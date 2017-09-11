@@ -12,6 +12,7 @@ extern "C" CGSConnectionID _CGSDefaultConnection(void);
 extern "C" CFDictionaryRef CGSSpaceCopyValues(CGSConnectionID Connection, CGSSpaceID SpaceId);
 extern "C" CGSSpaceType CGSSpaceGetType(CGSConnectionID Connection, CGSSpaceID SpaceId);
 extern "C" CFArrayRef CGSCopyManagedDisplaySpaces(const CGSConnectionID Connection);
+extern "C" CFArrayRef CGSCopySpaces(CGSConnectionID Connection, CGSSpaceSelector Type);
 extern "C" CFArrayRef CGSCopySpacesForWindows(CGSConnectionID Connection, CGSSpaceSelector Type, CFArrayRef Windows);
 extern "C" void CGSRemoveWindowsFromSpaces(CGSConnectionID Connection, CFArrayRef Windows, CFArrayRef Spaces);
 extern "C" void CGSAddWindowsToSpaces(CGSConnectionID Connection, CFArrayRef Windows, CFArrayRef Spaces);
@@ -329,6 +330,62 @@ macos_space *AXLibActiveSpace(CFStringRef DisplayRef)
 
     macos_space *Space = AXLibConstructSpace(SpaceRef, SpaceId, SpaceType);
     return Space;
+}
+
+/* NOTE(kalenanson): Return a list of spaces for the diaplay indicated.
+* The list is terminated by a null-pointer and can be iterated in the following way:
+*
+*     macos_space *Space, **List, **Spaces;
+*     List = Spaces = AXLibSpacesForWindow(Window->Id);
+*     while((Space = *List++)) { ..; AXLibDestroySpace(Space); }
+*     free(Spaces);
+*/
+macos_space **
+AXLibGetSpacesForDisplay(CFStringRef DisplayRef)
+{
+	ASSERT(DisplayRef);
+	macos_space **Result = NULL;
+	int NumberOfSpaces;
+	CFArrayRef Spaces = NULL;
+
+    Spaces = CGSCopySpaces(CGSDefaultConnection, kCGSSpaceAll);
+
+	if(Spaces != NULL)
+	{
+		NumberOfSpaces = CFArrayGetCount(Spaces);
+	}
+	else
+	{
+		NumberOfSpaces = 0;
+	}
+
+    if(NumberOfSpaces)
+    {
+        Result = (macos_space **) malloc(sizeof(macos_space *) * (NumberOfSpaces + 1));
+
+        for(int Index = 0;
+            Index < NumberOfSpaces;
+            ++Index)
+        {
+            NSNumber *Id = (__bridge NSNumber *) CFArrayGetValueAtIndex(Spaces, Index);
+            CGSSpaceID SpaceId = [Id intValue];
+
+            CFDictionaryRef SpaceCFDictionary = CGSSpaceCopyValues(CGSDefaultConnection, SpaceId);
+            NSDictionary *SpaceDictionary = (__bridge NSDictionary *) SpaceCFDictionary;
+
+            CGSSpaceType SpaceType = [SpaceDictionary[@"type"] intValue];
+            CFStringRef SpaceRef = (__bridge CFStringRef) [[NSString alloc] initWithString:SpaceDictionary[@"uuid"]];
+
+            macos_space *Space = AXLibConstructSpace(SpaceRef, SpaceId, SpaceType);
+            Result[Index] = Space;
+
+            CFRelease(SpaceCFDictionary);
+        }
+
+        Result[NumberOfSpaces] = NULL;
+        CFRelease(Spaces);
+    }
+    return Result;
 }
 
 /* NOTE(koekeishiya): Construct a macos_space representing the active space for the
